@@ -1,19 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="AI-Powered Virtual Queue System for sporting venues. Skip physical queues, get real-time updates, and enjoy the event!" />
-    <meta name="theme-color" content="#0f0f1a" />
-    <title>QueueX — Smart Venue Queue System</title>
-    <!-- Google Fonts: Inter + Space Grotesk -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="AI-Powered Virtual Queue System for sporting venues. Skip physical queues, get real-time updates, and enjoy the event!" />
+  <meta name="theme-color" content="#0f0f1a" />
+  <title>QueueX — Smart Venue Queue System</title>
+  <!-- Google Fonts: Inter + Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+
+  <!-- Google Analytics 4 (GA4) — loaded only when VITE_GA_MEASUREMENT_ID is set -->
+  <script>
+    // Placeholder until Vite injects __GA_ID__ at build time
+    window.__GA_ID__ = typeof __GA_ID__ !== 'undefined' ? __GA_ID__ : '';
+    if (window.__GA_ID__) {
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=' + window.__GA_ID__;
+      document.head.appendChild(s);
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag('js', new Date());
+      gtag('config', window.__GA_ID__, { send_page_view: false });
+    } else {
+      // No-op stub so analytics.js calls never throw
+      window.gtag = function () { };
+    }
+  </script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-ABC123XYZ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-5GCNLRXHYF');
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { eventAPI, queueAPI, stallAPI } from '../services/api';
+import { trackQueueJoin } from '../services/analytics';
 
 const CATEGORIES = [
   { id: 'food',        icon: '🍔', label: 'Food',        desc: 'Snacks, meals, and more' },
@@ -72,6 +73,7 @@ const Home = () => {
         eventId: selectedEvent._id,
         category: selectedCat,
       });
+      trackQueueJoin(selectedCat, res.data.token?.stall?.name); // GA4
       setJoinedToken(res.data.token);
       setStep(3);
       toast.success(`You're in! Token ${res.data.token.tokenNumber} assigned 🎫`);

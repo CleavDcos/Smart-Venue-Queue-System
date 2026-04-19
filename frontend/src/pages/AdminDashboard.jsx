@@ -22,6 +22,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { adminAPI, eventAPI, stallAPI, queueAPI } from '../services/api';
 import StallCard from '../components/StallCard';
+import VenueMap from '../components/VenueMap';
+import { trackAdminDashboardView, trackRebalanceTrigger } from '../services/analytics';
 
 const COLORS = ['#6c63ff', '#48d1cc', '#f72585', '#f59e0b', '#10b981'];
 
@@ -86,6 +88,11 @@ const AdminDashboard = () => {
     fetchDashboard();
     // Replaced HTTP polling with Firebase onSnapshot (below)
   }, [fetchDashboard]);
+
+  // GA4 — track admin dashboard visits when an event is selected
+  useEffect(() => {
+    if (selectedEventId) trackAdminDashboardView(selectedEventId);
+  }, [selectedEventId]);
 
   // Initial token fetch for Live Queue
   useEffect(() => {
@@ -176,6 +183,7 @@ const AdminDashboard = () => {
     setIsRebalancing(true);
     try {
       const res = await adminAPI.rebalance(selectedEventId);
+      trackRebalanceTrigger(selectedEventId); // GA4
       toast.success(res.message);
       fetchDashboard();
     } catch (error) {
@@ -469,6 +477,24 @@ const AdminDashboard = () => {
                       <div className="empty-state text-sm" style={{ padding: '2rem 0' }}>All queues are currently empty.</div>
                     )}
                   </div>
+                </div>
+
+                {/* ── Venue Map (Google Maps) ── */}
+                <div className="card mt-6" aria-label="Venue location map">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 style={{ fontSize: '1.1rem', margin: 0 }}>🗺️ Venue Map</h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-purple)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <img src="https://www.gstatic.com/images/branding/product/1x/maps_24dp.png" alt="Google Maps" width={16} height={16} style={{ borderRadius: 2 }} />
+                      Powered by Google Maps
+                    </span>
+                  </div>
+                  <VenueMap
+                    venueName={dashData?.event?.venue || 'Event Venue'}
+                    stalls={mergedStalls}
+                  />
+                  <p className="text-xs text-muted mt-2" style={{ textAlign: 'center' }}>
+                    📍 {dashData?.event?.venue || 'Venue'} · Stall markers colour-coded by queue load
+                  </p>
                 </div>
 
                 {/* Broadcast Panel */}

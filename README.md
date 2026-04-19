@@ -3,7 +3,60 @@
 ## Overview
 QueueX replaces physical queues at large sporting venues with a smart virtual queue system. Users scan a QR code, get a digital token, and are guided to the optimal stall via real-time AI-driven load balancing.
 
-**Stack:** MongoDB · Express.js · React.js · Node.js · Firebase
+**Stack:** MongoDB · Express.js · React.js · Node.js · Firebase Admin SDK · Firestore · Google Maps · Google Analytics
+
+---
+
+## 🌐 Google Services Integration
+
+This system actively uses four Google Cloud services:
+
+| Service | Role | Where Used |
+|---------|------|-----------|
+| **Firebase Admin SDK** | Backend Firestore writes using `firebase-admin` | `backend/config/firebaseAdmin.js` → all queue controllers |
+| **Firebase Firestore** | Real-time mirror layer — frontend subscribes via `onSnapshot` | Admin Dashboard, QueueStatus component |
+| **Google Maps JavaScript API** | Interactive venue map with load-coloured stall markers | Admin Dashboard → Heatmap tab → Venue Map |
+| **Google Analytics 4 (GA4)** | Tracks page views, queue joins, cancellations, admin actions | `frontend/src/services/analytics.js` |
+
+### Firebase Admin SDK (Backend)
+The backend initialises the Firebase Admin SDK in `backend/config/firebaseAdmin.js` using service account credentials from environment variables. After every queue mutation (join, rebalance, call-next, complete, cancel), a minimal snapshot is written non-blocking to Firestore:
+
+```js
+// backend/config/firebaseAdmin.js
+const { writeQueueSnapshot } = require('./config/firebaseAdmin');
+
+writeQueueSnapshot(tokenId, {
+  eventId, stallId, position, estimatedWaitMinutes, status
+}).catch(console.error);  // fire-and-forget — never blocks API response
+```
+
+### Firebase Firestore (Frontend Real-Time)
+The Admin Dashboard and QueueStatus component subscribe to live Firestore changes:
+
+```js
+// No polling — pure push from Firestore
+onSnapshot(query(collection(db, 'queueTokens'), where('eventId', '==', selectedEventId)), snapshot => {
+  // updates arrive within milliseconds of backend write
+});
+```
+
+### Google Maps
+The **Venue Map** card in the Admin Dashboard Heatmap tab renders an interactive Google Map:
+- Blue marker = event venue
+- Green/Yellow/Red markers = stalls, colour-coded by load ratio
+- Requires `VITE_GOOGLE_MAPS_API_KEY` — falls back to a styled placeholder if absent
+
+### Google Analytics 4
+Events tracked automatically:
+
+| GA4 Event | Trigger |
+|-----------|---------|
+| `page_view` | Every route navigation |
+| `queue_join` | User joins a queue (includes category + stall) |
+| `queue_cancel` | User leaves a queue |
+| `queue_status_view` | User views their live token |
+| `admin_dashboard_view` | Admin opens dashboard for an event |
+| `rebalance_trigger` | Admin triggers load rebalancing |
 
 ---
 
@@ -12,7 +65,7 @@ QueueX replaces physical queues at large sporting venues with a smart virtual qu
 ### Prerequisites
 - Node.js ≥ 18
 - MongoDB (local or Atlas)
-- Firebase project (optional — app works without it)
+- Firebase project (optional — app works without it in graceful-degradation mode)
 
 ---
 
@@ -30,18 +83,18 @@ npm install
 
 ### 2. Configure Environment Variables
 
-**Backend:**
+**Backend (`backend/.env`):**
 ```bash
 cd backend
 copy .env.example .env
-# Edit .env with your MongoDB URI and JWT secret
+# Fill in MONGODB_URI, JWT_SECRET, and FIREBASE_* credentials
 ```
 
-**Frontend:**
+**Frontend (`frontend/.env`):**
 ```bash
 cd frontend
 copy .env.example .env
-# Edit .env with your Firebase Web SDK config
+# Fill in VITE_FIREBASE_*, VITE_GOOGLE_MAPS_API_KEY, VITE_GA_MEASUREMENT_ID
 ```
 
 ### 3. Run the Application
@@ -87,16 +140,16 @@ db.users.updateOne({ email: "admin@venue.com" }, { $set: { role: "admin" } })
 
 ---
 
-## Firebase Setup (Optional)
+## Firebase Setup
 
-Without Firebase, the app uses REST polling (10s interval). For real-time updates:
+Without Firebase, the app uses one-time REST fetches on mount. For full real-time features:
 
 1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Enable **Firestore Database** (Start in test mode)
-3. Enable **Cloud Messaging**
-4. **Backend:** Download service account JSON → copy values to `backend/.env`
-5. **Frontend:** Copy Web SDK config → paste into `frontend/.env`
-6. For FCM web push, generate a VAPID key in Firebase Console → Cloud Messaging → Web Push certificates
+2. Enable **Firestore Database** (start in test mode)
+3. **Backend:** Project Settings → Service Accounts → Generate new private key → copy values to `backend/.env`
+4. **Frontend:** Project Settings → Your apps → Web → copy SDK config → paste into `frontend/.env`
+5. **Google Maps:** Enable "Maps JavaScript API" in [Google Cloud Console](https://console.cloud.google.com) → copy API key to `VITE_GOOGLE_MAPS_API_KEY`
+6. **Google Analytics:** Create a GA4 property → copy Measurement ID (`G-XXXXXXXXXX`) to `VITE_GA_MEASUREMENT_ID`
 
 ---
 
@@ -105,23 +158,35 @@ Without Firebase, the app uses REST polling (10s interval). For real-time update
 ```
 queue_system/
 ├── backend/
-│   ├── config/          # MongoDB + Firebase Admin SDK
-│   ├── controllers/     # Auth, Queue, Stall, Event, Admin
-│   ├── middleware/       # JWT auth, error handler
-│   ├── models/          # User, QueueToken, Stall, Event
-│   ├── routes/          # REST API route definitions
-│   ├── services/        # Queue engine (AI) + FCM notifications
-│   ├── simulation/      # Crowd simulation script
-│   └── server.js        # Express app entry point
+│   ├── config/
+│   │   ├── firebase.js          # Firebase Admin SDK initialisation
+│   │   └── firebaseAdmin.js     # Named Admin SDK entry-point + Firestore helpers
+│   ├── controllers/             # Auth, Queue, Stall, Event, Admin
+│   ├── middleware/              # JWT auth, rate limiting, sanitisation
+│   ├── models/                  # User, QueueToken, Stall, Event (with indexes)
+│   ├── routes/                  # REST API route definitions
+│   ├── services/                # Queue engine (AI) + FCM notifications
+│   ├── simulation/              # Crowd simulation script
+│   └── server.js                # Express app entry point
 │
 └── frontend/
     └── src/
-        ├── components/  # Navbar, QueueStatus, StallCard
-        ├── context/     # AuthContext, ToastContext
-        ├── firebase/    # Firebase Web SDK
-        ├── hooks/       # useQueue (real-time)
-        ├── pages/       # Home, Login, QueuePage, AdminDashboard
-        └── services/    # Axios API layer
+        ├── components/
+        │   ├── Navbar.jsx        # Accessible navigation landmark
+        │   ├── QueueStatus.jsx   # Real-time token card (Firestore onSnapshot)
+        │   ├── StallCard.jsx     # Keyboard-accessible stall selector
+        │   └── VenueMap.jsx      # Google Maps venue + stall visualisation
+        ├── context/              # AuthContext, ToastContext
+        ├── firebase/             # Firebase Web SDK initialisation
+        ├── hooks/                # useQueue (real-time token hook)
+        ├── pages/
+        │   ├── Home.jsx          # Event listing + queue join (GA4 tracked)
+        │   ├── Login.jsx         # Auth
+        │   ├── QueuePage.jsx     # Live token status (GA4 tracked)
+        │   └── AdminDashboard.jsx# Real-time control centre (Firestore + Maps + GA4)
+        └── services/
+            ├── api.js            # Axios layer
+            └── analytics.js      # Google Analytics 4 helpers
 ```
 
 ---
@@ -139,30 +204,19 @@ The queue engine (`backend/services/queueEngine.js`) uses heuristic algorithms:
 
 ---
 
-## Running Tests / Simulation
+## Security
+
+- `helmet` — HTTP secure headers
+- `express-rate-limit` — 100 req / 15 min per IP on all `/api` routes
+- `express-mongo-sanitize` — strips `$` and `.` from inputs (NoSQL injection prevention)
+- JWT authentication on all protected routes
+
+---
+
+## Running Tests
 
 ```bash
 cd backend
-npm run simulate
-```
-
-Output example:
-```
-🏟️  AI Queue System — Crowd Simulation
-═══════════════════════════════════════
-
-✅ Admin logged in
-✅ Event created: IPL Finals 2024
-✅ 6 stalls created
-
-[Pre-Match Rush] Simulating 20 users...
-  🎫 User 01 → food         | North Food Court A | #3 | ~10 min
-  🎫 User 02 → beverage     | East Beverage Bar  | #2 | ~3 min
-  ...
-
-📊 Dashboard Statistics
-══════════════════════
-  🟢 North Food Court B   [████░░░░░░░░░░░░░░░░]  35% |  5/15
-  🟡 North Food Court A   [████████████░░░░░░░░]  60% |  9/15
-  🔴 Main Merch Store     [████████████████████] 100% |  8/8
+npm test                  # All test suites (unit + integration)
+npm run test:integration  # End-to-end queue assignment tests
 ```

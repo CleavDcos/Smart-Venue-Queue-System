@@ -3,7 +3,8 @@
  * Sets up routing, context providers, and protected route guards.
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
@@ -11,6 +12,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import QueuePage from './pages/QueuePage';
 import AdminDashboard from './pages/AdminDashboard';
+import { trackPageView } from './services/analytics';
 
 // ─── Route Guards ──────────────────────────────────────────────────────────────
 
@@ -34,9 +36,19 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+// ─── GA4 Route Tracker ────────────────────────────────────────────────────────
+const RouteTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageView(location.pathname, document.title);
+  }, [location.pathname]);
+  return null;
+};
+
 // ─── App Layout with Navbar ───────────────────────────────────────────────────
 const AppLayout = () => (
   <div className="app-layout">
+    <RouteTracker />
     <Navbar />
     <main className="page-content">
       <Routes>

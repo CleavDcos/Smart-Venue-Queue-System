@@ -12,6 +12,7 @@ import { useToast } from '../context/ToastContext';
 import { useActiveToken } from '../hooks/useQueue';
 import { queueAPI } from '../services/api';
 import QueueStatus from '../components/QueueStatus';
+import { trackQueueCancel, trackEvent } from '../services/analytics';
 
 const QueuePage = () => {
   const { isAuthenticated } = useAuth();
@@ -32,6 +33,7 @@ const QueuePage = () => {
     setIsCancelling(true);
     try {
       await queueAPI.cancelToken();
+      trackQueueCancel(); // GA4 event
       setToken(null);
       toast.success('Token cancelled. You can join a new queue anytime.');
     } catch (error) {
@@ -40,6 +42,13 @@ const QueuePage = () => {
       setIsCancelling(false);
     }
   };
+
+  // Track when user views their active queue status
+  useEffect(() => {
+    if (token?.status === 'waiting' || token?.status === 'serving') {
+      trackEvent('queue_status_view', { event_category: 'Queue', status: token.status });
+    }
+  }, [token?._id]);
 
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
