@@ -31,14 +31,24 @@ const StallCard = ({ stall, onSelect, selected, showJoinBtn }) => {
   const waitMin = stall.estimatedWaitMinutes ?? Math.ceil(stall.currentLoad * stall.avgServiceTime * 1.1);
 
   return (
-    <div
+    <article
       className={`card card-hover ${selected ? 'animate-pulse-glow' : ''}`}
+      tabIndex={onSelect ? 0 : undefined}
+      role={onSelect ? 'button' : 'article'}
+      aria-label={`Stall ${stall.name}, ${cat.label}`}
+      aria-pressed={selected}
       style={{
         cursor: onSelect ? 'pointer' : 'default',
         borderColor: selected ? 'var(--accent-purple)' : 'var(--color-border)',
         transition: 'all 0.25s ease',
       }}
       onClick={() => onSelect?.(stall)}
+      onKeyDown={(e) => {
+        if (onSelect && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onSelect(stall);
+        }
+      }}
     >
       {/* Header */}
       <div className="flex justify-between items-center mb-3">
@@ -120,7 +130,7 @@ const StallCard = ({ stall, onSelect, selected, showJoinBtn }) => {
           Join Queue →
         </button>
       )}
-    </div>
+    </article>
   );
 };
 

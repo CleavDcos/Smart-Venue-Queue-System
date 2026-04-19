@@ -70,6 +70,10 @@ const stallSchema = new mongoose.Schema(
   }
 );
 
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+// Optimize find stalls by event, category, and open status
+stallSchema.index({ eventId: 1, category: 1, isOpen: 1 });
+
 // ─── Virtuals ─────────────────────────────────────────────────────────────────
 /**
  * Load ratio: 0 (empty) to 1+ (overloaded)

@@ -98,8 +98,8 @@ const queueTokenSchema = new mongoose.Schema(
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 // Optimise common lookups
 queueTokenSchema.index({ userId: 1, status: 1 });
-queueTokenSchema.index({ stallId: 1, status: 1 });
-queueTokenSchema.index({ eventId: 1, status: 1 });
+queueTokenSchema.index({ stallId: 1, status: 1, joinedAt: 1 });
+queueTokenSchema.index({ eventId: 1, status: 1, category: 1 });
 
 // ─── Static Methods ───────────────────────────────────────────────────────────
 /**

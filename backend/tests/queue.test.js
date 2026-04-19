@@ -108,6 +108,16 @@ describe('Queue APIs', () => {
 
       expect(res.statusCode).toEqual(400); // Invalid Event ID validator
     });
+
+    it('should fail if category is invalid or missing', async () => {
+      const res = await request(app)
+        .post('/api/queue/join')
+        .set('Authorization', `Bearer ${authToken}`)
+        .send({ eventId, category: 'unknown-category' });
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.errors[0].msg).toMatch(/Invalid category/i);
+    });
   });
 
   describe('GET /api/queue/my-token', () => {

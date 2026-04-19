@@ -4,6 +4,10 @@
  * Reacts to real-time Firestore updates.
  */
 
+import { useEffect, useState } from 'react';
+import { db, isFirebaseConfigured } from '../firebase/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+
 const CATEGORY_ICONS = {
   food: '🍔', beverage: '🥤', merchandise: '🛒', medical: '🏥', information: 'ℹ️',
 };
@@ -16,23 +20,44 @@ const STATUS_CONFIG = {
   reassigned: { label: 'Updated',   cls: 'badge-waiting',  color: 'var(--status-waiting)'   },
 };
 
-const QueueStatus = ({ token }) => {
-  if (!token) return null;
+const QueueStatus = ({ token: initialToken }) => {
+  const [liveToken, setLiveToken] = useState(initialToken);
 
-  const status = STATUS_CONFIG[token.status] || STATUS_CONFIG.waiting;
-  const stallName     = token.stallId?.name     || token.stallName     || 'Assigned Stall';
-  const stallLocation = token.stallId?.location || token.stallLocation || '';
-  const stallNav      = token.stallId?.navigationInstructions || token.navigationInstructions || '';
-  const category      = token.category;
+  useEffect(() => {
+    // If no db or no ID, do nothing and rely on polling / initial data
+    if (!initialToken?._id || !db || !isFirebaseConfigured) {
+      setLiveToken(initialToken);
+      return;
+    }
+
+    const docRef = doc(db, 'queueTokens', initialToken._id.toString());
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const liveData = docSnap.data();
+        // Merge MongoDB data as base, overwrite with real-time minimal Firestore data 
+        setLiveToken((prev) => ({ ...prev, ...liveData }));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [initialToken]);
+
+  if (!liveToken) return null;
+
+  const status = STATUS_CONFIG[liveToken.status] || STATUS_CONFIG.waiting;
+  const stallName     = liveToken.stallId?.name     || liveToken.stallName     || 'Assigned Stall';
+  const stallLocation = liveToken.stallId?.location || liveToken.stallLocation || '';
+  const stallNav      = liveToken.stallId?.navigationInstructions || liveToken.navigationInstructions || '';
+  const category      = liveToken.category;
 
   return (
-    <div className="token-card animate-fade-up">
+    <article className="token-card animate-fade-up" aria-labelledby={`token-title-${liveToken.tokenNumber}`}>
       {/* Header row */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-3">
           <span style={{ fontSize: '2rem' }}>{CATEGORY_ICONS[category] || '🎟️'}</span>
           <div>
-            <div className="token-number">{token.tokenNumber}</div>
+            <h2 id={`token-title-${liveToken.tokenNumber}`} className="token-number m-0">{liveToken.tokenNumber}</h2>
             <div className="text-xs text-muted" style={{ marginTop: 2 }}>Queue Token</div>
           </div>
         </div>
@@ -45,7 +70,7 @@ const QueueStatus = ({ token }) => {
       </div>
 
       {/* Position & Wait */}
-      {token.status === 'waiting' && (
+      {liveToken.status === 'waiting' && (
         <div className="flex gap-4 mb-5" style={{ flexWrap: 'wrap' }}>
           <div style={{
             flex: 1, minWidth: 120,
@@ -55,8 +80,8 @@ const QueueStatus = ({ token }) => {
             padding: '1rem',
             textAlign: 'center',
           }}>
-            <div className="queue-position" style={{ justifyContent: 'center', margin: 0 }}>
-              <span className="position-number" style={{ fontSize: '2.5rem' }}>#{token.position}</span>
+            <div className="queue-position" style={{ justifyContent: 'center', margin: 0 }} aria-live="polite" aria-atomic="true">
+              <span className="position-number" style={{ fontSize: '2.5rem' }} aria-label={`Position ${liveToken.position}`}>#{liveToken.position}</span>
             </div>
             <div className="text-xs text-muted">Position in Queue</div>
           </div>
@@ -69,15 +94,15 @@ const QueueStatus = ({ token }) => {
             padding: '1rem',
             textAlign: 'center',
           }}>
-            <div className="position-number" style={{ fontSize: '2.5rem', color: 'var(--accent-cyan)' }}>
-              {token.estimatedWaitMinutes}
+            <div className="position-number" style={{ fontSize: '2.5rem', color: 'var(--accent-cyan)' }} aria-live="polite" aria-atomic="true" aria-label={`${liveToken.estimatedWaitMinutes} minutes estimated wait`}>
+              {liveToken.estimatedWaitMinutes}
             </div>
             <div className="text-xs text-muted">Est. Wait (min)</div>
           </div>
         </div>
       )}
 
-      {token.status === 'serving' && (
+      {liveToken.status === 'serving' && (
         <div style={{
           background: 'rgba(16,185,129,0.1)',
           border: '1px solid rgba(16,185,129,0.25)',
@@ -130,7 +155,7 @@ const QueueStatus = ({ token }) => {
       </div>
 
       {/* Reassignment Notice */}
-      {token.reassignmentHistory?.length > 0 && (
+      {liveToken.reassignmentHistory?.length > 0 && (
         <div style={{
           marginTop: '0.75rem',
           padding: '0.75rem',
@@ -145,7 +170,7 @@ const QueueStatus = ({ token }) => {
           <span>You were reassigned to a less crowded stall for a shorter wait.</span>
         </div>
       )}
-    </div>
+    </article>
   );
 };
 

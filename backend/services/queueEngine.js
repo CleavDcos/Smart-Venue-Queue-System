@@ -112,7 +112,7 @@ const recalculateQueuePositions = async (stallId) => {
   const waitingTokens = await QueueToken.find({
     stallId,
     status: 'waiting',
-  }).sort({ joinedAt: 1 });
+  }).sort({ joinedAt: 1 }).lean();
 
   const stall = await Stall.findById(stallId);
   if (!stall) return;
@@ -128,22 +128,21 @@ const recalculateQueuePositions = async (stallId) => {
       estimatedWaitMinutes: newEstimatedWait,
     });
 
-    // Sync to Firestore for real-time frontend updates
-    await syncTokenToFirestore(token._id.toString(), {
+    // Sync to Firestore for real-time frontend updates (non-blocking, minimal data)
+    syncTokenToFirestore(token._id.toString(), {
       position: newPosition,
       estimatedWaitMinutes: newEstimatedWait,
-    });
+    }).catch(e => console.error("Firestore sync fail", e.message));
   }
 
   // Update stall's currentLoad to match actual waiting count
   stall.currentLoad = waitingTokens.length;
   await stall.save();
 
-  // Sync stall load to Firestore
-  await syncStallToFirestore(stallId.toString(), {
+  // Sync stall load to Firestore (non-blocking)
+  syncStallToFirestore(stallId.toString(), {
     currentLoad: stall.currentLoad,
-    estimatedWaitMinutes: stall.estimatedWaitMinutes,
-  });
+  }).catch(e => console.error("Firestore sync fail", e.message));
 };
 
 /**
@@ -223,16 +222,13 @@ const rebalanceQueues = async (eventId) => {
         );
       }
 
-      // Sync to Firestore
-      await syncTokenToFirestore(token._id.toString(), {
+      // Sync to Firestore (non-blocking)
+      syncTokenToFirestore(token._id.toString(), {
         stallId: targetStall._id.toString(),
-        stallName: targetStall.name,
-        stallLocation: targetStall.location,
         position: token.position,
         estimatedWaitMinutes: token.estimatedWaitMinutes,
         status: 'waiting',
-        reassigned: true,
-      });
+      }).catch(e => console.error("Firestore sync fail", e.message));
 
       changes.push({
         tokenNumber: token.tokenNumber,

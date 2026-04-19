@@ -106,22 +106,15 @@ const joinQueue = async (req, res) => {
       status: 'waiting',
     });
 
-    // Sync to Firestore for real-time updates
-    await syncTokenToFirestore(token._id.toString(), {
-      tokenId: token._id.toString(),
-      tokenNumber: token.tokenNumber,
-      userId: userId.toString(),
+    // Sync to Firestore for real-time updates (non-blocking, minimal data)
+    syncTokenToFirestore(token._id.toString(), {
       eventId: eventId.toString(),
+      tokenNumber: token.tokenNumber,
       stallId: stall._id.toString(),
-      stallName: stall.name,
-      stallLocation: stall.location,
-      navigationInstructions: stall.navigationInstructions,
       position,
       estimatedWaitMinutes,
-      category,
       status: 'waiting',
-      joinedAt: token.joinedAt.toISOString(),
-    });
+    }).catch(e => console.error("Firestore sync fail", e.message));
 
     // Update user's current event
     await User.findByIdAndUpdate(userId, { currentEvent: eventId });
@@ -172,7 +165,8 @@ const getMyToken = async (req, res) => {
       status: { $in: ['waiting', 'serving'] },
     })
       .populate('stallId', 'name location navigationInstructions category')
-      .populate('eventId', 'name venue');
+      .populate('eventId', 'name venue')
+      .lean();
 
     if (!token) {
       return res.status(404).json({
@@ -198,7 +192,8 @@ const getMyHistory = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20)
       .populate('stallId', 'name location category')
-      .populate('eventId', 'name venue date');
+      .populate('eventId', 'name venue date')
+      .lean();
 
     res.json({ success: true, data: { tokens } });
   } catch (error) {
@@ -232,8 +227,9 @@ const cancelToken = async (req, res) => {
     // Recalculate queue positions for this stall
     await recalculateQueuePositions(stallId);
 
-    // Update Firestore
-    await syncTokenToFirestore(token._id.toString(), { status: 'cancelled' });
+    // Update Firestore (non-blocking)
+    syncTokenToFirestore(token._id.toString(), { status: 'cancelled' })
+      .catch(e => console.error("Firestore sync fail", e.message));
 
     res.json({ success: true, message: 'Token cancelled successfully' });
   } catch (error) {
@@ -279,11 +275,10 @@ const callNextUser = async (req, res) => {
       );
     }
 
-    // Update Firestore
-    await syncTokenToFirestore(nextToken._id.toString(), {
+    // Update Firestore (non-blocking)
+    syncTokenToFirestore(nextToken._id.toString(), {
       status: 'serving',
-      calledAt: nextToken.calledAt.toISOString(),
-    });
+    }).catch(e => console.error("Firestore sync fail", e.message));
 
     // Recalculate remaining queue
     await recalculateQueuePositions(stallId);
@@ -335,11 +330,10 @@ const completeService = async (req, res) => {
       await sendServiceCompleteNotification(token.userId.fcmToken, stall?.name || 'stall');
     }
 
-    // Update Firestore
-    await syncTokenToFirestore(tokenId, {
+    // Update Firestore (non-blocking)
+    syncTokenToFirestore(tokenId, {
       status: 'done',
-      completedAt: token.completedAt.toISOString(),
-    });
+    }).catch(e => console.error("Firestore sync fail", e.message));
 
     // Recalculate queue positions after service
     await recalculateQueuePositions(stallId);
@@ -364,7 +358,8 @@ const getStallQueue = async (req, res) => {
       status: { $in: ['waiting', 'serving'] },
     })
       .sort({ position: 1 })
-      .populate('userId', 'name email');
+      .populate('userId', 'name email')
+      .lean();
 
     res.json({ success: true, data: { tokens } });
   } catch (error) {

@@ -17,11 +17,11 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="navbar">
+    <nav className="navbar" aria-label="Main Navigation">
       <div className="navbar-inner">
         {/* Brand */}
-        <Link to="/" className="navbar-brand">
-          <div className="navbar-logo">⚡</div>
+        <Link to="/" className="navbar-brand" aria-label="QueueX Home">
+          <div className="navbar-logo" aria-hidden="true">⚡</div>
           <span className="navbar-name">QueueX</span>
         </Link>
 
