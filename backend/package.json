@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "simulate": "node simulation/simulateCrowd.js",
     "test": "cross-env NODE_ENV=test jest --runInBand",
-    "test:integration": "cross-env NODE_ENV=test jest tests/queue.integration.test.js --runInBand"
+    "test:integration": "cross-env NODE_ENV=test jest tests/queue.integration.test.js --runInBand",
+    "test:security": "cross-env NODE_ENV=test jest tests/security.test.js --runInBand",
+    "test:unit": "cross-env NODE_ENV=test jest tests/queue.test.js tests/admin.test.js tests/auth.test.js tests/queueEngine.test.js --runInBand"
   },
   "dependencies": {
     "axios": "^1.6.0",

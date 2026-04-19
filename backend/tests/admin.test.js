@@ -11,6 +11,13 @@ jest.mock('../config/firebase', () => ({
   getMessaging: jest.fn(() => null),
   admin: {}
 }));
+jest.mock('../config/firebaseAdmin', () => ({
+  getFirestore: jest.fn(() => null),
+  getMessaging: jest.fn(() => null),
+  writeQueueSnapshot: jest.fn(() => Promise.resolve()),
+  writeStallSnapshot:  jest.fn(() => Promise.resolve()),
+  admin: {}
+}));
 
 let adminToken;
 let userToken;

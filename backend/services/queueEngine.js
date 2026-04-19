@@ -25,7 +25,7 @@
 
 const Stall = require('../models/Stall');
 const QueueToken = require('../models/QueueToken');
-const { getFirestore } = require('../config/firebase');
+const { getFirestore } = require('../config/firebaseAdmin');
 const { sendReassignmentNotification } = require('./notificationService');
 
 // Rebalancing thresholds
